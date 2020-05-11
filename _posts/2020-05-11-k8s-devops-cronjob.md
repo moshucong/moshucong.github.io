@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "成为Kubernetes运维开发（6）：认识工作负载Cronjob"
-date:   2020-05-11 01:14:13 +0800
+date:   2020-05-11 06:14:13 +0800
 categories: Kubernetes
 ---
 
