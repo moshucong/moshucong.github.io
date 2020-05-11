@@ -11,7 +11,7 @@ WebSocket协议的主要价值在于其与HTTP的差异（服务器端与客户�
 
 
 
-## 1. Kubernetes WebSocket研究
+## 1. Kubernetes WebSocket端点
 
 Kubernetes提供了两个WebSocket端点：
 
