@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "一次沙雕的calico troubleshooting过程"
+title:  "一次的calico troubleshooting过程"
 date:   2018-11-01 12:14:13 +0800
 categories: calico
 ---
