@@ -1,17 +1,17 @@
 ---
 layout: post
-title:  "配置docker nofile"
+title:  "容器应用配置nofile"
 date:   2018-04-13 17:12:13 +0800
 categories: Docker
 ---
 
-
+对于流量较大的服务，常掉入的一个坑是程序网络连接数达到Linux打开文件数限制，导致网络通信失败。
 Linux通过nofile配置来限制进程能够打开的文件句柄。Linux默认nofile配置为1024，在高并发场景下已经无法满足需求。因此，通常需要将docker容器的nofile配置修改得大一些。
 
 
 ## 1. docker nofile介绍
 
-Linux上通过``ulimit``命令查看nofile，该命令实质上是从``/proc/self/limits ``读取相关信息，所以在``/proc/self/limits``中我们也可以找到``Max open files``信息：
+Linux上通过``ulimit``命令查看nofile，该命令实质上是从``/proc/self/limits ``读取相关信息。在``/proc/self/limits``中我们也可以找到``Max open files``信息。
 ```
 root@allen-laptop:~# cat /proc/self/limits 
 Limit                     Soft Limit           Hard Limit           Units     
@@ -48,7 +48,7 @@ root@ubuntu-1:/# ulimit -n
 如果docker采用``service docker start``启动，那么docker将默认从``/etc/init/docker.conf``配置文件中获取nofile配置 ：
 
 ```
-root@allen-10:/home/allen# cat /etc/init/docker.conf
+root@allen-10:~# cat /etc/init/docker.conf
 description "Docker daemon"
 
 start on (filesystem and net-device-up IFACE!=lo)

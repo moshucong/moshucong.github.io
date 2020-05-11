@@ -5,8 +5,8 @@ date:   2018-04-13 17:12:13 +0800
 categories: Kubernetes
 ---
 
-公司项目组同事反馈，容器平台中某个容器应用有时会出现“容器没挂，但里面Java进程挂掉”的情况。
-这个容器应用是一位已离职的同事所创建，我不了解情况，为此还专门花时间研究了一番。
+公司项目组同事反馈，容器平台中某个容器应用有时会出现“容器没挂，但里面Java进程挂掉”的问题。
+此项目原先由一位已离职的运维同事负责，为解决问题，我专门探究了一番。
 
 ## 1.  问题复盘
 
@@ -61,13 +61,13 @@ categories: Kubernetes
 
 ### 2.1 Kubernetes的内存配置
 
-Kubernetes是通过Pod配置中的memory request和memory limit，来配置容器的内存控制策略。
-* memory request（内存最低保障）：表示容器正常运行必须要提供的内存，Kubernetes将 **确保** 容器获得该内存量。例如，某容器设置memory request为1G，那么Kubernetes将为其预留1G内存。
-* memory limit（内存最高上限）：表示容器所能使用的内存量的上限。
+Kubernetes是通过Pod配置中的memory request和memory limit，配置容器的内存控制策略。
+* memory request（内存最低保障）：表示容器正常运行必须要提供的内存，Kubernetes将 **确保** 容器获得该内存量。
+* memory limit（内存最高上限）：表示容器所能使用的内存量的上限，超出将被OOM。
 
 容器的memory request和memory limit配置会产生如下影响：
 * 影响Kubernetes的容器调度。宿主机上运行的容器的memory request之和，一定小于宿主机的可供分配的内存量。举个例子，某节点N可分配内存是600M，上面已经运行了一个memory request为500M的容器A，现在有一个memory request是200M新容器B需要调度。那么即便当前容器A实际只消耗了1M的内存，容器B也不能调度到节点N上面，因为两个容器的memory request之和超过了节点可分配内存，Kubernetes调度策略必须要满足容器的memory request。
-* 影响Kubernetes杀死容器的顺序。 当节点出现内存竞争时，  Kubernetes将  （1）优先杀死内存用量达到其memory limit 的容器； （2）在1的基础上，若无法解决内存竞争，则继续杀死内存用量超过其memory request的容器。
+* 影响OOM-Killer杀死容器的顺序。 当节点出现内存竞争时， 将  （1）优先杀死内存用量达到其memory limit 的容器； （2）在1的基础上，若无法解决内存竞争，则继续杀死内存用量超过其memory request的容器。
 
 ### 2.2.  JVM内存参数配置
 
@@ -95,27 +95,27 @@ Java(TM) SE Runtime Environment (build 1.8.0_66-b17)
 Java HotSpot(TM) 64-Bit Server VM (build 25.66-b17, mixed mode)
 ```
 
-根据《容器内存机制探讨：为什么容器内的应用无法感知其内存限制》的结论：容器内应用感知到的内存与host机内存一致。
+根据[为什么容器内的应用无法感知其内存限制](https://moshucong.github.io/docker/2018/04/13/container_memory_limit.html)的结论：容器内应用感知到的内存与host机内存一致。
 
-举个例子：某台机器内存8GB，我们在上面运行一个Java容器，容器内存上限设置为1GB。假设我们Java启动命令忘记设置XMX，那么JVM默认会将XMX设置为2GB。那么当Java申请内存超过1GB时，容器将会重启。
+举个例子：某台机器内存8GB，我们在上面运行一个Java容器，容器内存上限设置为1GB。假设我们Java启动命令忘记设置XMX，那么JVM默认会将XMX设置为2GB（宿主机内存总量的四分之一）。那么当Java申请内存超过1GB时，容器将会重启。
 
 
 ### 2.3  当JVM XMX配置遇上Kubernetes内存限制
 
 根据JVM xmx、容器内存需求（memory request）、容器内存上限（memory limit）配置的不同情况，JVM与容器会擦出不同的火花。具体情况如下：
 
-#### 2.3.1 xmx < memReq < memLimit
+#### 2.3.1 xmx < Memory Reqest < Memory Limit
 
 在这种情况下，当Java申请堆内存超出xmx时，OS内核OOM-killer就会干掉Java进程，但由于容器内存实际仍未达到memory request，因此容器不会被干掉。
 因此，**有出现“容器没挂，但里面Java进程挂掉“的可能**。
 
-#### 2.3.2 memReq < xmx < memLimit
+#### 2.3.2 Memory Request < xmx < Memory Limit
 
 这种情况下，当Java申请内存超出容器memory request、但小于xmx，若宿主机的内存有富余，则容器和Java均正常运行；若所在宿主机内存无富余，则容器和Java进程将同时被OS内核OOM kill。**当Java申请内存超出xmx时，若宿主机内存仍有富余，则容器不会挂掉，但Java进程会被OS内核OOM kill。这种情况下，同样有出现“容器没挂，但里面Java进程挂掉”的可能。**
 回到本文开头所说的事故正是这种情况：memory request 2G、xmx3000M、memory limit 4296MB， 容器没挂，但Java挂掉。
 
 
-#### 2.3.3 memReq < memLimit < xmx
+#### 2.3.3 Memory Reqest < Memory Limit < xmx
 
 这种情况下，当Java申请内存超出容器memory request但小于memory limit：若宿主机内存富余，则容器和Java均正常运行；若宿主机内存无富余，则容器将被杀死并调度到其他机器。当Java申请内存超出memory limit时，容器将被杀死并调度到其他机器。
 这种情况下，不存在“容器没挂，但里面Java进程挂掉”的情况。
@@ -123,7 +123,7 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.66-b17, mixed mode)
 
 ## 3. 为什么Kubernetes没有重启Java挂掉的容器？
 
-我们配置容器restartPolicy为always，因此当容器内主进程挂掉后，Kubernetes会因为容器CrashLoopBackOff将其重启。
+pod的restartPolicy通常是always，因此当容器内主进程挂掉后，Kubelet会因为容器CrashLoopBackOff将其重启。
 
 但目前我们遇到的问题是“Java挂掉，但容器没挂”，那么可推测原因有两个：
 
@@ -165,61 +165,11 @@ nohup java $JAVA_OPTS $JAVA_MEM_OPTS $JAVA_GC_OPTS $JAVA_DEBUG_OPTS $JAVA_JMX_OP
 
 ## 4.  解决方案
 
-### 4.1  配置livenessProbe，让k8s检测Java进程状态
+### 4.1 OOM时让Java进程主动退出
 
-增加一个检查Java进程的``livenessProbe.sh``：
-
-```
-#!/bin/bash
-PIDS=`jps | grep $APP_NAME | awk '{print $1}'`
-
-if [ -z "$PIDS" ]; then
-    echo "not ok"
-    exit 1
-else
-    echo 'ok'
-    exit 0
-fi
-```
-
-修改Deployment配置：
-
-````
-{
-    "spec":{
-        "template":{
-            "spec":{
-                "containers":[
-                    {
-                    ... ...
-                        "readinessProbe":{
-                            "exec":{
-                                "command":[
-                                    "bash",
-                                    "-c",
-                                    "/dianyi/app/xxxx/xxxx-java/bin/readinessProbe.sh"
-                                ]
-                            },
-                            "initialDelaySeconds":3
-                        },
-                        "livenessProbe":{
-                            "exec":{
-                                "command":[
-                                    "bash",
-                                    "-c",
-                                    "/dianyi/app/xxxx/xxxx-java/bin/livenessProbe.sh"
-                                ]
-                            },
-                            "initialDelaySeconds":15
-                        }
-                        ... ...
-                    }
-                ]
-            }
-        }
-    }
-}
-````
+在Java启动命令添加如下两个flag：
+* -XX:+ExitOnOutOfMemoryError。当JVM发生OOM时，Java进程主动退出。 
+* -XX:+HeapDumpOnOutOfMemoryError。当JVM发生OOM时，生成Heap Dump文件，用于JVM内存分析。
 
 
 ### 4.2 根据容器cgroup限制来配置XMX，而不是根据宿主机内存总量。
@@ -276,7 +226,7 @@ echo "-Xmx${XMX}m"
 
 
 
-### 4.3 移除容器内的SSHD进程
+### 4.3 Java进程作为容器内唯一前台进程运行
 
 SSHD服务实际上是造成这次"容器没挂、Java挂掉"问题的原因之一：假如没有这个前台执行的SSHD、Java进程放前台执行，那么Java挂掉后，Kubernetes必然会重启容器。
 
