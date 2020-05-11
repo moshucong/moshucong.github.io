@@ -2,11 +2,9 @@
 layout: post
 title:  "成为Kubernetes运维开发（1）：配置好用的kubectl"
 date:   2020-05-11 01:14:13 +0800
-categories: data
+categories: Kubernetes
 ---
 
-
-## 1.1 配置好用的kubectl
 
 Kubernetes通过Kube-apiserver对外提供API服务。常用的访问Kube-apiserver的方式有：
 
@@ -27,7 +25,7 @@ Kubernetes通过Kube-apiserver对外提供API服务。常用的访问Kube-apiser
 
 
 
-### 1.1.1 kubectl的kubeconfig配置
+### 1. kubectl的kubeconfig配置
 
 随着容器技术的广泛使用，各大公司通常搭建并维护着数量众多的容器集群，包括生产、测试等不同类型，不同区域的集群。因此运维人员通常同时管理着大量的集群。
 
@@ -184,7 +182,7 @@ CURRENT   NAME       CLUSTER    AUTHINFO         NAMESPACE
 
 
 
-### 1.1.2. 通过kubectx快速切换集群上下文
+### 2. 通过kubectx快速切换集群上下文
 
 除了``kubectl config get-contexts``和``kubectl config use-context``，``kubectx``工具也可实现集群上下文的切换，且操作比kubectl更快捷。
 
@@ -201,20 +199,20 @@ sudo ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
 
 ```
 # kubectx 
-xian-188
-ali-zjk
+cluster-1
+cluster-2
 ```
 
 可通过``kubectx [context名]``命令，切换集群上下文：
 
 ```
-# kubectx xian-188
-Switched to context "xian-188".
+# kubectx cluster-1
+Switched to context "cluster-1".
 ```
 
 
 
-### 1.1.3 动手实践
+### 3. 动手实践
 
 实验步骤：
 
