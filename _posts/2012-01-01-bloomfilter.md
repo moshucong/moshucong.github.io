@@ -5,7 +5,6 @@ date:   2012-01-01 20:14:13 +0800
 categories: data
 ---
 
-
 Bloom Filter是由Bloom在1970年提出的一种多哈希函数映射的快速查找算法。通常应用在一些需要快速判断某个元素是否属于集合，但是并不严格要求100%正确的场合。
 
 ### 1. 实例
@@ -36,18 +35,18 @@ Bloom Filter是由Bloom在1970年提出的一种多哈希函数映射的快速�
 
 废话说到这里，下面引入本篇的主角——Bloom Filter。其实上面方法4的思想已经很接近Bloom Filter了。方法四的致命缺点是冲突概率高，为了降低冲突的概念，Bloom Filter使用了多个哈希函数，而不是一个。
 
-Bloom Filter算法如下：
-
-创建一个m位BitSet，先将所有位初始化为0，然后选择k个不同的哈希函数。第i个哈希函数对字符串str哈希的结果记为h（i，str），且h（i，str）的范围是0到m-1 。
+Bloom Filter算法首先创建一个m位BitSet，先将所有位初始化为0，然后选择k个不同的哈希函数。第i个哈希函数对字符串str哈希的结果记为h（i，str），且h（i，str）的范围是0到m-1 。
 
 **(1) 加入字符串过程**
 
 下面是每个字符串处理的过程，首先是将字符串str“记录”到BitSet中的过程：
 
 对于字符串str，分别计算h（1，str），h（2，str）…… h（k，str）。然后将BitSet的第h（1，str）、h（2，str）…… h（k，str）位设为1。
+
 ![bloomfilter](images/bloomfilter.jpg)
 
 图1.Bloom Filter加入字符串过程
+
 很简单吧？这样就将字符串str映射到BitSet中的k个二进制位了。
 
 **(2) 检查字符串是否存在的过程**
@@ -67,7 +66,6 @@ Bloom Filter算法如下：
 
 Bloom Filter跟单哈希函数Bit-Map不同之处在于：Bloom Filter使用了k个哈希函数，每个字符串跟k个bit对应。从而降低了冲突的概率。
 
- 
 
 ### 3. Bloom Filter参数选择
 
@@ -148,5 +146,7 @@ public class BloomFilter {
 ```
 
 **参考文献：**
+
 [1]Pei Cao. [Bloom Filters - the math](http://pages.cs.wisc.edu/~cao/papers/summary-cache/node8.html)
+
 [2]Wikipedia. [Bloom filter](http://en.wikipedia.org/wiki/Bloom_filter)
